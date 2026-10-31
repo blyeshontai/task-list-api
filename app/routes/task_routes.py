@@ -1,10 +1,10 @@
-from flask import Blueprint, request, Response
+from flask import Blueprint, request, abort, make_response
 from ..db import db
 from ..models.task import Task
 from datetime import datetime
 from .route_utilities import (
     validate_model, create_model, send_slack_message,
-    get_models_with_sort, delete_model, no_content_response)        #Wave 7 refactoring
+    get_models_with_filters, delete_model, no_content_response)        #Wave 7 refactoring
 
 bp = Blueprint("tasks_bp", __name__, url_prefix="/tasks")
 
@@ -18,8 +18,8 @@ def create_task():
 '''Wave 2 Update get_all_tasks'''
 @bp.get("")
 def get_all_tasks():
-    #Wave 7 refactor, moved code to get_models_with_sort
-    return get_models_with_sort(Task, request.args.get("sort"))
+    #Wave 7 refactor, moved code to get_models_with_filters
+    return get_models_with_filters(Task, request.args)
 
 @bp.get("/<task_id>")
 def get_one_task(task_id):
@@ -31,8 +31,14 @@ def update_task(task_id):
     task = validate_model(Task, task_id)
     request_body = request.get_json()
 
-    task.title = request_body["title"]
-    task.description = request_body["description"]
+    try:
+        task.title = request_body["title"]
+        task.description = request_body["description"]
+        if "completed_at" in request_body:
+            task.completed_at = Task.parse_completed_at(request_body["completed_at"])
+    except (KeyError, ValueError, TypeError):
+        abort(make_response({"details": "Invalid data"}, 400))
+
     db.session.commit()
 
     #Wave 7 refactor, return Response(status=204, mimetype="application/json")
@@ -40,11 +46,6 @@ def update_task(task_id):
 
 @bp.delete("/<task_id>")
 def delete_task(task_id):
-    #Wave 7 remove and refactor
-    # task = validate_model(Task, task_id)
-    # db.session.delete(task)
-    # db.session.commit()
-    #return Response(status=204, mimetype="application/json")
     return delete_model(Task, task_id)
 
 
@@ -71,13 +72,3 @@ def mark_task_incomplete(task_id):
 
     #Wave 7 refactor, return Response(status=204, mimetype="application/json")
     return no_content_response()
-
-
-
-
-#Wave 2 old get all tasks
-# @bp.get("")
-# def get_all_tasks():
-#     query = db.select(Task).order_by(Task.id)
-#     tasks = db.session.scalars(query)
-#     return [task.to_dict() for task in tasks]

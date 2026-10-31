@@ -40,24 +40,12 @@ class Task(db.Model):
         return cls(
             title=task_data["title"],
             description=task_data["description"],
-            completed_at=None,
+            completed_at=cls.parse_completed_at(task_data.get("completed_at")),
             goal_id=task_data.get("goal_id")
         )
 
-
-'''Wave1 Model Helper Methods'''
-    #Updated old to_dict & class method to connect goals
-    # def to_dict(self):
-    #     return {
-    #         "id": self.id,
-    #         "title": self.title,
-    #         "description": self.description,
-    #         "is_complete": self.completed_at is not None
-    #     }
-    # @classmethod
-    #     def from_dict(cls, task_data):#
-    #         return cls(
-    #             title=task_data["title"],
-    #             description=task_data["description"],
-    #             completed_at=None
-    #         )
+    @staticmethod
+    def parse_completed_at(value):
+        if value is None:
+            return None
+        return datetime.fromisoformat(value)

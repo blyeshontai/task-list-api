@@ -1,10 +1,10 @@
-from flask import Blueprint, request, Response
+from flask import Blueprint, request
 from ..db import db
 from ..models.goal import Goal
 from ..models.task import Task
 from .route_utilities import (
     validate_model, create_model,
-    get_models_with_sort, delete_model, no_content_response)        #Wave 7 refactor
+    get_models_with_filters, delete_model, no_content_response)        #Wave 7 refactor
 
 bp = Blueprint("goals_bp", __name__, url_prefix="/goals")
 
@@ -16,7 +16,7 @@ def create_goal():
 
 @bp.get("")
 def get_all_goals():
-    return get_models_with_sort(Goal, request.args.get("sort"))
+    return get_models_with_filters(Goal, request.args)
 
 
 @bp.get("/<goal_id>")

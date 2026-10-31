@@ -18,11 +18,10 @@ def validate_model(cls, model_id):
         abort(make_response({"message": f"{cls.__name__} {model_id} not found"}, 404))
     return model
 
-
 def create_model(cls, model_data):
     try:
         new_model = cls.from_dict(model_data)
-    except KeyError:
+    except (KeyError, ValueError, TypeError):
         abort(make_response({"details": "Invalid data"}, 400))
 
     db.session.add(new_model)
@@ -43,18 +42,30 @@ def send_slack_message(text):
 
 '''Wave 7 Refactoring'''
 #moved code from task_routes, replased task with cls
-def get_models_with_sort(cls, sort_param=None):
+def get_models_with_filters(cls, args):
     query = db.select(cls)
 
-    if sort_param == "asc":
-        query = query.order_by(cls.title.asc())
-    elif sort_param == "desc":
-        query = query.order_by(cls.title.desc())
-    else:
+    title = args.get("title")
+    if title:
+        query = query.where(cls.title.ilike(f"%{title}%"))
+
+    sort = args.get("sort")
+    sort_by = args.get("sort_by")
+
+    if sort is None and sort_by is None:
         query = query.order_by(cls.id)
+    else:
+        sort = sort or "asc"
+        sort_by = sort_by or "title"
+        if sort not in ("asc", "desc") or sort_by not in ("id", "title"):
+            abort(make_response({"details": "Invalid sort parameter"}, 400))
+
+        column = getattr(cls, sort_by)
+        query = query.order_by(column.asc() if sort == "asc" else column.desc())
 
     models = db.session.scalars(query)
     return [model.to_dict() for model in models]
+
 
 def delete_model(cls, model_id):
     model = validate_model(cls, model_id)
